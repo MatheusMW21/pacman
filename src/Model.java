@@ -103,13 +103,13 @@ public class Model extends JPanel implements ActionListener {
     private void drawPacman(Graphics2D g2d) {
 
         if (req_dx == -1) {
-            g2d.drawImage(left,pacman_x + 1, pacman_y + 1, this);
-        } else if (req_dx == -1) {
             g2d.drawImage(left, pacman_x + 1, pacman_y + 1, this);
-        } else if (req_dx == -1) {
-            g2d.drawImage(left, pacman_x + 1, pacman_y + 1, this);
-        } else if (req_dx == -1) {
-            g2d.drawImage(left, pacman_x + 1, pacman_y + 1, this);
+        } else if (req_dx == 1) {
+            g2d.drawImage(right, pacman_x + 1, pacman_y + 1, this);
+        } else if (req_dy == -1) {
+            g2d.drawImage(up, pacman_x + 1, pacman_y + 1, this);
+        } else {
+            g2d.drawImage(down, pacman_x + 1, pacman_y + 1, this);
         }
     }
 
@@ -126,6 +126,28 @@ public class Model extends JPanel implements ActionListener {
                 screenData[pos] = (short) (ch & 15);
                 score++;
             }
+
+            if (pacman_x >= SCREEN_SIZE - BLOCK_SIZE) {
+                pacman_x = 0;
+            } else if (pacman_x < 0) {
+                pacman_x = SCREEN_SIZE - BLOCK_SIZE;
+            }
+
+            if (pacman_y >= SCREEN_SIZE - BLOCK_SIZE) {
+                pacman_y = 0;
+            } else if (pacman_y < 0) {
+                pacman_y = SCREEN_SIZE - BLOCK_SIZE;
+            }
+
+            if(pacman_x < 0) {
+                pacman_x = SCREEN_SIZE - BLOCK_SIZE;
+            }
+
+            if (pacman_x % BLOCK_SIZE == 0 && pacman_y % BLOCK_SIZE == 0) {
+                pos = pacman_x / BLOCK_SIZE + N_BLOCKS * (int) (pacman_y / BLOCK_SIZE);
+                ch = screenData[pos];
+            }
+
 
             if (req_dx != 0 || req_dy != 0) {
                 if (!((req_dx == -1 && req_dy == 0 && (ch & 1) != 0)
@@ -150,6 +172,88 @@ public class Model extends JPanel implements ActionListener {
         pacman_y = pacman_y + PACMAN_SPEED * pacmand_y;
     }
 
+    private void moveGhosts(Graphics2D g2d) {
+
+        int pos;
+        int count;
+
+        for (int i = 0; i < N_GHOSTS; i++) {
+            if (ghost_x[i] % BLOCK_SIZE == 0 && ghost_y[i] % BLOCK_SIZE == 0) {
+                pos = ghost_x[i] / BLOCK_SIZE + N_BLOCKS * (int) (ghost_y[i] / BLOCK_SIZE);
+
+                count = 0;
+
+                if(ghost_x[i] < 0) {
+                    ghost_x[i] = SCREEN_SIZE - BLOCK_SIZE;
+                } else if(ghost_x[i] >= SCREEN_SIZE){
+                    ghost_x[i] = 0;
+                }
+
+                if ((screenData[pos] & 1) == 0 && ghost_dx[i] != 1) {
+                    dx[count] = -1;
+                    dy[count] = 0;
+                    count++;
+                }
+
+                if ((screenData[pos] & 2) == 0 && ghost_dy[i] != 1) {
+                    dx[count] = 0;
+                    dy[count] = -1;
+                    count++;
+                }
+
+                if ((screenData[pos] & 4) == 0 && ghost_dx[i] != -1) {
+                    dx[count] = 1;
+                    dy[count] = 0;
+                    count++;
+                }
+
+                if ((screenData[pos] & 8) == 0 && ghost_dy[i] != -1) {
+                    dx[count] = 0;
+                    dy[count] = 1;
+                    count++;
+                }
+
+                if (count == 0) {
+
+                    if ((screenData[pos] & 15) == 15) {
+                        ghost_dx[i] = 0;
+                        ghost_dy[i] = 0;
+                    } else {
+                        ghost_dx[i] = -ghost_dx[i];
+                        ghost_dy[i] = -ghost_dy[i];
+                    }
+
+                } else {
+
+                    count = (int) (Math.random() * count);
+
+                    if (count > 3) {
+                        count = 3;
+                    }
+
+                    ghost_dx[i] = dx[count];
+                    ghost_dy[i] = dy[count];
+                }
+
+            }
+
+            ghost_x[i] = ghost_x[i] + (ghost_dx[i] * ghostSpeed[i]);
+            ghost_y[i] = ghost_y[i] + (ghost_dy[i] * ghostSpeed[i]);
+            drawGhost(g2d, ghost_x[i] + 1, ghost_y[i] + 1);
+
+            if (pacman_x > (ghost_x[i] - 12) && pacman_x < (ghost_x[i] + 12)
+                    && pacman_y > (ghost_y[i] - 12) && pacman_y < (ghost_y[i] + 12)
+                    && inGame) {
+
+                dying = true;
+            }
+        }
+    }
+
+    private void drawGhost(Graphics2D g2d, int x, int y) {
+        g2d.drawImage(ghost, x, y, this);
+    }
+
 
     private void death() {
 
@@ -162,8 +266,11 @@ public class Model extends JPanel implements ActionListener {
     }
 
 
-    private void showIntroScreen() {
-        
+    private void showIntroScreen(Graphics2D g2d) {
+
+        String start = "Pressione ESPAÇO para começar";
+        g2d.setColor(Color.yellow);
+        g2d.drawString(start,(SCREEN_SIZE)/4, 150);
     }
 
 
@@ -257,17 +364,54 @@ public class Model extends JPanel implements ActionListener {
         }
     }
 
-    private void drawScore(Graphics2D g2d) {
+    private void drawScore(Graphics2D g) {
+        g.setFont(smallFont);
+        g.setColor(new Color(5, 181, 79));
+        String s = "Score: " + score;
+        g.drawString(s, SCREEN_SIZE / 2 + 96, SCREEN_SIZE + 16);
 
+        for (int i = 0; i < lives; i++) {
+            g.drawImage(heart, i * 28 + 8, SCREEN_SIZE + 1, this);
+        }
 
     }
 
-    public void paintComponents(Graphics g) {
-        super.paintComponents(g);
+    private void checkMaze() {
+
+        int i = 0;
+        boolean finished = true;
+
+        while (i < N_BLOCKS * N_BLOCKS && finished) {
+
+            if ((screenData[i]) != 0) {
+                finished = false;
+            }
+
+            i++;
+        }
+
+        if (finished) {
+
+            score += 50;
+
+            if (N_GHOSTS < MAX_GHOSTS) {
+                N_GHOSTS++;
+            }
+
+            if (currentSpeed < maxSpeed) {
+                currentSpeed++;
+            }
+
+            initLevel();
+        }
+    }
+
+    public void paintComponent(Graphics g) {
+        super.paintComponent(g);
 
         Graphics2D g2d= (Graphics2D) g;
 
-        g2d.setColor(Color.BLACK);
+        g2d.setColor(Color.black);
         g2d.fillRect(0, 0, d.width, d.height);
 
         drawMaze(g2d);
